@@ -111,7 +111,8 @@ class Input {
         let group = DispatchGroup()
         var verticalSlides = [Slide]()
         verticalSlides.reserveCapacity(verticalImages.count)
-        let chunks = verticalImages.chunks(verticalImages.count / 12)
+        if verticalImages.count == 0 { return }
+        let chunks = verticalImages.chunks(verticalImages.count / 12).map { $0.count % 2 == 0 ? $0 : Array($0.dropLast()) }
         chunks.enumerated().forEach { (index, chunk) in
             let name = "dispatch_queue_\(index)"
             let queue = DispatchQueue(label: name)
@@ -158,7 +159,7 @@ class Input {
         let group = DispatchGroup()
         var endSlides = [Slide]()
         endSlides.reserveCapacity(slides.count)
-        let chunks = slides.chunks(slides.count / 12)
+        let chunks = slides.chunks(slides.count / 13).map { $0.count % 2 == 0 ? $0 : Array($0.dropLast()) }
         chunks.enumerated().forEach { (index, chunk) in
             let name = "dispatch_queue_\(index)"
             let queue = DispatchQueue(label: name)
@@ -230,7 +231,7 @@ class Input {
     }
 }
 
-let input = Parser().read("c_memorable_moments")
+let input = Parser().read("b_lovely_landscapes")
 input.matchVerticalSlides()
 //input.sort()
 //input.generateDictionary()
