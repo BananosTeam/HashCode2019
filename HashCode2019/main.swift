@@ -85,7 +85,7 @@ class SlideWithInterest {
 class Input {
     var images = [Image]()
     var horizontalImages = [Image]()
-    var verticalImages = [Int: Image]()
+    var verticalImages = [(Int, Image)]()
     var slides = [Slide]()
     var finalSlides = [Slide]()
     init(_ contents: String) {
@@ -102,19 +102,40 @@ class Input {
                 horizontalImages.append(image)
                 slides.append(Slide(imagesID: [index], tags: image.tags))
             } else {
-                verticalImages[index] = image
+                verticalImages.append((index, image))
             }
         }
     }
 
     func matchVerticalSlides() {
+        let group = DispatchGroup()
+        var verticalSlides = [Slide]()
+        verticalSlides.reserveCapacity(verticalImages.count)
+        let chunks = verticalImages.chunks(verticalImages.count / 12)
+        chunks.enumerated().forEach { (index, chunk) in
+            let name = "dispatch_queue_\(index)"
+            let queue = DispatchQueue(label: name)
+            group.enter()
+            queue.async {
+                verticalSlides += self.matchSomeVerticalImages(chunk)
+                group.leave()
+            }
+        }
+        group.wait()
+        slides += verticalSlides
+    }
+
+    func matchSomeVerticalImages(_ images: [(Int, Image)]) -> [Slide] {
         var matchedIndices = Set<Int>()
-        matchedIndices.reserveCapacity(verticalImages.count)
-        if verticalImages.isEmpty { return }
-        for (index1, image1) in verticalImages {
+        matchedIndices.reserveCapacity(images.count)
+        var endSlides = [Slide]()
+        endSlides.reserveCapacity(images.count)
+        if images.isEmpty { return [] }
+        for (index1, image1) in images {
+            print(index1)
             if matchedIndices.contains(index1) { continue }
             var (max, maxIndex, maxSlide): (Int, Int, Slide?) = (0, 0, nil)
-            for (index2, image2) in verticalImages {
+            for (index2, image2) in images {
                 if matchedIndices.contains(index2) { continue }
                 let newValue = image1.union(with: image2)
                 if newValue.count > max {
@@ -122,18 +143,12 @@ class Input {
                     maxIndex = index2
                     maxSlide = Slide(imagesID: [index1, index2], tags: newValue)
                 }
-//                let newSet = image1.union(with: image2)
-//                if newSet.count > max {
-//                    max = newSet.count
-//                    maxIndex = index2
-//                    maxSlide = Slide(imagesID: [index1, index2], tags: newSet)
-//                }
             }
             matchedIndices.insert(index1)
             matchedIndices.insert(maxIndex)
-            slides.append(maxSlide!)
-//            slides.append(Slide(imagesID: [index1, maxIndex], tags: image1.tags.union(maxImage!.tags)))
+            endSlides.append(maxSlide!)
         }
+        return endSlides
     }
 
     func sort() {
@@ -141,32 +156,6 @@ class Input {
     }
 
     func matchSlides() {
-//        var matchedIndices = Set<Int>()
-//        let finalCount = slides.count
-//        matchedIndices.reserveCapacity(finalCount)
-//        finalSlides.reserveCapacity(finalCount)
-//        var matchedCount = 0
-//        var currentIndex = 0
-//        var slide = slides[currentIndex]
-//        finalSlides.append(slide)
-//        matchedIndices.insert(0)
-//        while matchedCount < finalCount - 1 {
-//            print(matchedCount)
-//            var (max, maxIndex): (Int, Int) = (0, 0)
-//            for (index, newSlide) in slides.enumerated() {
-//                if index == currentIndex || matchedIndices.contains(index) { continue }
-//                let newValue = slide.compare(newSlide)
-//                if newValue > max {
-//                    max = newValue
-//                    maxIndex = index
-//                }
-//            }
-//            matchedCount += 1
-//            slide = slides[maxIndex]
-//            finalSlides.append(slide)
-//            currentIndex = maxIndex
-//            matchedIndices.insert(maxIndex)
-//        }
         let group = DispatchGroup()
         var endSlides = [Slide]()
         endSlides.reserveCapacity(slides.count)
@@ -235,14 +224,14 @@ class Input {
 
     func outputResult() {
         var result = "\(finalSlides.count)"
-        for slide in slides {
+        for slide in finalSlides {
             result += "\n\(slide.imagesID.map { String(describing: $0) }.joined(separator: " "))"
         }
         print(result)
     }
 }
 
-let input = Parser().read("b_lovely_landscapes")
+let input = Parser().read("e_shiny_selfies")
 input.matchVerticalSlides()
 //input.sort()
 //input.generateDictionary()
