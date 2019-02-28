@@ -1,5 +1,13 @@
 import Foundation
 
+extension Array {
+    func chunks(_ chunkSize: Int) -> [[Element]] {
+        return stride(from: 0, to: self.count, by: chunkSize).map {
+            Array(self[$0..<Swift.min($0 + chunkSize, self.count)])
+        }
+    }
+}
+
 class Parser {
     func read(_ file: String) -> Input {
         let url = Bundle.main.url(forResource: file, withExtension: "txt")!
@@ -133,19 +141,64 @@ class Input {
     }
 
     func matchSlides() {
+//        var matchedIndices = Set<Int>()
+//        let finalCount = slides.count
+//        matchedIndices.reserveCapacity(finalCount)
+//        finalSlides.reserveCapacity(finalCount)
+//        var matchedCount = 0
+//        var currentIndex = 0
+//        var slide = slides[currentIndex]
+//        finalSlides.append(slide)
+//        matchedIndices.insert(0)
+//        while matchedCount < finalCount - 1 {
+//            print(matchedCount)
+//            var (max, maxIndex): (Int, Int) = (0, 0)
+//            for (index, newSlide) in slides.enumerated() {
+//                if index == currentIndex || matchedIndices.contains(index) { continue }
+//                let newValue = slide.compare(newSlide)
+//                if newValue > max {
+//                    max = newValue
+//                    maxIndex = index
+//                }
+//            }
+//            matchedCount += 1
+//            slide = slides[maxIndex]
+//            finalSlides.append(slide)
+//            currentIndex = maxIndex
+//            matchedIndices.insert(maxIndex)
+//        }
+        let group = DispatchGroup()
+        var endSlides = [Slide]()
+        endSlides.reserveCapacity(slides.count)
+        let chunks = slides.chunks(slides.count / 12)
+        chunks.enumerated().forEach { (index, chunk) in
+            let name = "dispatch_queue_\(index)"
+            let queue = DispatchQueue(label: name)
+            group.enter()
+            queue.async {
+                endSlides += self.matchSomeSlides(chunk, name: name)
+                group.leave()
+            }
+        }
+        group.wait()
+        finalSlides = endSlides
+    }
+
+    private func matchSomeSlides(_ someSlides: [Slide], name: String = "") -> [Slide] {
         var matchedIndices = Set<Int>()
-        let finalCount = slides.count
+        var matchedSlides = [Slide]()
+        let finalCount = someSlides.count
         matchedIndices.reserveCapacity(finalCount)
-        finalSlides.reserveCapacity(finalCount)
+        matchedSlides.reserveCapacity(finalCount)
         var matchedCount = 0
         var currentIndex = 0
-        var slide = slides[currentIndex]
-        finalSlides.append(slide)
+        var slide = someSlides[currentIndex]
+        matchedSlides.append(slide)
         matchedIndices.insert(0)
         while matchedCount < finalCount - 1 {
-            print(matchedCount)
+            if matchedCount % 200 == 0 { print("\(name) reached \(matchedCount)") }
             var (max, maxIndex): (Int, Int) = (0, 0)
-            for (index, newSlide) in slides.enumerated() {
+            for (index, newSlide) in someSlides.enumerated() {
                 if index == currentIndex || matchedIndices.contains(index) { continue }
                 let newValue = slide.compare(newSlide)
                 if newValue > max {
@@ -155,10 +208,11 @@ class Input {
             }
             matchedCount += 1
             slide = slides[maxIndex]
-            finalSlides.append(slide)
+            matchedSlides.append(slide)
             currentIndex = maxIndex
             matchedIndices.insert(maxIndex)
         }
+        return matchedSlides
     }
 
     var dictionary = NSMutableDictionary()
@@ -190,7 +244,7 @@ class Input {
 
 let input = Parser().read("b_lovely_landscapes")
 input.matchVerticalSlides()
-input.sort()
-input.generateDictionary()
-//input.matchSlides()
-//input.outputResult()
+//input.sort()
+//input.generateDictionary()
+input.matchSlides()
+input.outputResult()
