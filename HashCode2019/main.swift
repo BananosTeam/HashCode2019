@@ -15,15 +15,15 @@ enum ImageType {
 
 class Image {
     var type: ImageType
-    var tags: Set<String>
+    var tags: Set<NSString>
 
     init(line: String) {
         let comps = line.components(separatedBy: " ")
         self.type = comps[0] == "H" ? .horizontal : .vertical
-        tags = Set(comps[2..<comps.count])
+        tags = Set(comps[2..<comps.count]) as Set<NSString>
     }
 
-    func union(with other: Image) -> Set<String> {
+    func union(with other: Image) -> Set<NSString> {
 //        var newSet = NSMutableSet()
 //        for tag in tags {
 //            newSet.add(tag)
@@ -36,9 +36,15 @@ class Image {
     }
 }
 
-struct Slide {
+class Slide {
     var imagesID = [Int]()
-    var tags: Set<String>
+    var tags: Set<NSString> = []
+    var wasMatched = false
+
+    init(imagesID: [Int], tags: Set<NSString>) {
+        self.imagesID = imagesID
+        self.tags = tags
+    }
 
     func compare(_ other: Slide) -> Int {
 //        var (union, first, second) = (0, 0, 0)
@@ -55,6 +61,16 @@ struct Slide {
 //        }
 //        return min(union, first, second)
         return min(tags.union(other.tags).count, tags.subtracting(other.tags).count, other.tags.subtracting(tags).count)
+    }
+}
+
+class SlideWithInterest {
+    let slide: Slide
+    let interest: Int
+
+    init(slide: Slide, interest: Int) {
+        self.slide = slide
+        self.interest = interest
     }
 }
 
@@ -127,6 +143,7 @@ class Input {
         finalSlides.append(slide)
         matchedIndices.insert(0)
         while matchedCount < finalCount - 1 {
+            print(matchedCount)
             var (max, maxIndex): (Int, Int) = (0, 0)
             for (index, newSlide) in slides.enumerated() {
                 if index == currentIndex || matchedIndices.contains(index) { continue }
@@ -144,6 +161,24 @@ class Input {
         }
     }
 
+    var dictionary = NSMutableDictionary()
+    func generateDictionary() {
+        let count = slides.count
+        dictionary = NSMutableDictionary(capacity: count)
+        for i in 0..<count {
+            dictionary[i] = NSMutableArray(capacity: count)
+        }
+        for (index1, slide1) in slides.enumerated() {
+            print(index1)
+            for (index2, slide2) in slides.suffix(from: index1).enumerated() {
+                let interest = slide1.compare(slide2)
+                if interest <= 0 { continue }
+                (dictionary[index1] as! NSMutableArray).add(SlideWithInterest(slide: slide2, interest: interest))
+                (dictionary[index2] as! NSMutableArray).add(SlideWithInterest(slide: slide1, interest: interest))
+            }
+        }
+    }
+
     func outputResult() {
         var result = "\(finalSlides.count)"
         for slide in slides {
@@ -153,8 +188,9 @@ class Input {
     }
 }
 
-let input = Parser().read("c_memorable_moments")
+let input = Parser().read("b_lovely_landscapes")
 input.matchVerticalSlides()
 input.sort()
-input.matchSlides()
-input.outputResult()
+input.generateDictionary()
+//input.matchSlides()
+//input.outputResult()
