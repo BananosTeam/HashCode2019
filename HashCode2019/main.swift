@@ -132,7 +132,6 @@ class Input {
         endSlides.reserveCapacity(images.count)
         if images.isEmpty { return [] }
         for (index1, image1) in images {
-            print(index1)
             if matchedIndices.contains(index1) { continue }
             var (max, maxIndex, maxSlide): (Int, Int, Slide?) = (0, 0, nil)
             for (index2, image2) in images {
@@ -185,7 +184,7 @@ class Input {
         matchedSlides.append(slide)
         matchedIndices.insert(0)
         while matchedCount < finalCount - 1 {
-            if matchedCount % 200 == 0 { print("\(name) reached \(matchedCount)") }
+//            if matchedCount % 200 == 0 { print("\(name) reached \(matchedCount)") }
             var (max, maxIndex): (Int, Int) = (0, 0)
             for (index, newSlide) in someSlides.enumerated() {
                 if index == currentIndex || matchedIndices.contains(index) { continue }
@@ -196,7 +195,7 @@ class Input {
                 }
             }
             matchedCount += 1
-            slide = slides[maxIndex]
+            slide = someSlides[maxIndex]
             matchedSlides.append(slide)
             currentIndex = maxIndex
             matchedIndices.insert(maxIndex)
@@ -212,7 +211,7 @@ class Input {
             dictionary[i] = NSMutableArray(capacity: count)
         }
         for (index1, slide1) in slides.enumerated() {
-            print(index1)
+//            print(index1)
             for (index2, slide2) in slides.suffix(from: index1).enumerated() {
                 let interest = slide1.compare(slide2)
                 if interest <= 0 { continue }
@@ -231,7 +230,7 @@ class Input {
     }
 }
 
-let input = Parser().read("e_shiny_selfies")
+let input = Parser().read("c_memorable_moments")
 input.matchVerticalSlides()
 //input.sort()
 //input.generateDictionary()
