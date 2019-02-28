@@ -23,15 +23,15 @@ enum ImageType {
 
 class Image {
     var type: ImageType
-    var tags: Set<NSString>
+    var tags: Set<String>
 
     init(line: String) {
         let comps = line.components(separatedBy: " ")
         self.type = comps[0] == "H" ? .horizontal : .vertical
-        tags = Set(comps[2..<comps.count]) as Set<NSString>
+        tags = Set(comps[2..<comps.count])
     }
 
-    func union(with other: Image) -> Set<NSString> {
+    func union(with other: Image) -> Set<String> {
 //        var newSet = NSMutableSet()
 //        for tag in tags {
 //            newSet.add(tag)
@@ -46,10 +46,10 @@ class Image {
 
 class Slide {
     var imagesID = [Int]()
-    var tags: Set<NSString> = []
+    var tags: Set<String> = []
     var wasMatched = false
 
-    init(imagesID: [Int], tags: Set<NSString>) {
+    init(imagesID: [Int], tags: Set<String>) {
         self.imagesID = imagesID
         self.tags = tags
     }
@@ -68,7 +68,7 @@ class Slide {
 //            if !tags.contains(tag) { second += 1}
 //        }
 //        return min(union, first, second)
-        return min(tags.union(other.tags).count, tags.subtracting(other.tags).count, other.tags.subtracting(tags).count)
+        return min(tags.intersection(other.tags).count, tags.subtracting(other.tags).count, other.tags.subtracting(tags).count)
     }
 }
 
@@ -107,6 +107,8 @@ class Input {
         }
     }
 
+    let verticalSlidesLock = NSLock()
+
     func matchVerticalSlides() {
         let group = DispatchGroup()
         var verticalSlides = [Slide]()
@@ -118,12 +120,17 @@ class Input {
             let queue = DispatchQueue(label: name)
             group.enter()
             queue.async {
-                verticalSlides += self.matchSomeVerticalImages(chunk)
+                self.writeVerticalImages(self.matchSomeVerticalImages(chunk))
                 group.leave()
             }
         }
         group.wait()
-        slides += verticalSlides
+    }
+
+    func writeVerticalImages(_ slides: [Slide]) {
+        verticalSlidesLock.lock()
+        self.slides += slides
+        verticalSlidesLock.unlock()
     }
 
     func matchSomeVerticalImages(_ images: [(Int, Image)]) -> [Slide] {
@@ -138,7 +145,7 @@ class Input {
             for (index2, image2) in images {
                 if matchedIndices.contains(index2) { continue }
                 let newValue = image1.union(with: image2)
-                if newValue.count > max {
+                if newValue.count >= max {
                     max = newValue.count
                     maxIndex = index2
                     maxSlide = Slide(imagesID: [index1, index2], tags: newValue)
@@ -157,20 +164,25 @@ class Input {
 
     func matchSlides() {
         let group = DispatchGroup()
-        var endSlides = [Slide]()
-        endSlides.reserveCapacity(slides.count)
         let chunks = slides.chunks(slides.count / 13).map { $0.count % 2 == 0 ? $0 : Array($0.dropLast()) }
         chunks.enumerated().forEach { (index, chunk) in
             let name = "dispatch_queue_\(index)"
             let queue = DispatchQueue(label: name)
             group.enter()
             queue.async {
-                endSlides += self.matchSomeSlides(chunk, name: name)
+                self.writeSlides(self.matchSomeSlides(chunk, name: name))
                 group.leave()
             }
         }
         group.wait()
-        finalSlides = endSlides
+    }
+
+    let finalSlidesLock = NSLock()
+
+    func writeSlides(_ slides: [Slide]) {
+        finalSlidesLock.lock()
+        finalSlides += slides
+        finalSlidesLock.unlock()
     }
 
     private func matchSomeSlides(_ someSlides: [Slide], name: String = "") -> [Slide] {
@@ -185,12 +197,12 @@ class Input {
         matchedSlides.append(slide)
         matchedIndices.insert(0)
         while matchedCount < finalCount - 1 {
-//            if matchedCount % 200 == 0 { print("\(name) reached \(matchedCount)") }
+            if matchedCount % 200 == 0 { print("\(name) reached \(matchedCount)") }
             var (max, maxIndex): (Int, Int) = (0, 0)
             for (index, newSlide) in someSlides.enumerated() {
                 if index == currentIndex || matchedIndices.contains(index) { continue }
                 let newValue = slide.compare(newSlide)
-                if newValue > max {
+                if newValue >= max {
                     max = newValue
                     maxIndex = index
                 }
@@ -212,7 +224,6 @@ class Input {
             dictionary[i] = NSMutableArray(capacity: count)
         }
         for (index1, slide1) in slides.enumerated() {
-//            print(index1)
             for (index2, slide2) in slides.suffix(from: index1).enumerated() {
                 let interest = slide1.compare(slide2)
                 if interest <= 0 { continue }
@@ -231,7 +242,7 @@ class Input {
     }
 }
 
-let input = Parser().read("b_lovely_landscapes")
+let input = Parser().read("d_pet_pictures")
 input.matchVerticalSlides()
 //input.sort()
 //input.generateDictionary()
